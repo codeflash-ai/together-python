@@ -86,7 +86,7 @@ def finetune_price_to_dollars(price: float) -> float:
     Returns:
         float: Price in dollars
     """
-    return price / NANODOLLAR
+    return price * 1e-9
 
 
 def convert_bytes(num: float) -> str | None:
