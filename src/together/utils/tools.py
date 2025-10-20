@@ -121,6 +121,6 @@ def convert_unix_timestamp(timestamp: int) -> str:
     dt_object = datetime.fromtimestamp(timestamp)
 
     # Format datetime object as ISO 8601 string
-    iso_format = dt_object.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    iso_format = f"{dt_object.year:04d}-{dt_object.month:02d}-{dt_object.day:02d}T{dt_object.hour:02d}:{dt_object.minute:02d}:{dt_object.second:02d}.{dt_object.microsecond:06d}Z"
 
     return iso_format
