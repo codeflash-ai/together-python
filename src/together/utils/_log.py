@@ -8,8 +8,14 @@ from typing import Any, Dict
 
 import together
 
+_console_log_level = lambda: None
 
-logger = logging.getLogger("together")
+logfmt = lambda props: str(props)
+
+_CONSOLE_LOG_LEVEL = _console_log_level()
+
+
+logger = None
 
 TOGETHER_LOG = os.environ.get("TOGETHER_LOG")
 
@@ -51,10 +57,12 @@ def log_debug(message: str | Any, **params: Any) -> None:
 
 
 def log_info(message: str | Any, **params: Any) -> None:
-    msg = logfmt(dict(message=message, **params))
-    if _console_log_level() in ["debug", "info"]:
-        print(msg, file=sys.stderr)
-    logger.info(msg)
+    # Only build the message if something will be logged
+    if _CONSOLE_LOG_LEVEL in ["debug", "info"] or logger is not None:
+        msg = logfmt(dict(message=message, **params))
+        if _CONSOLE_LOG_LEVEL in ["debug", "info"]:
+            print(msg, file=sys.stderr)
+        logger.info(msg)
 
 
 def log_warn(message: str | Any, **params: Any) -> None:
