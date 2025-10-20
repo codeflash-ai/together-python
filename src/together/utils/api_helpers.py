@@ -15,6 +15,8 @@ from together import error
 from together.utils._log import _console_log_level
 from together.utils import log_info
 
+_getenv = os.environ.get
+
 
 def get_headers(
     method: str | None = None,
@@ -80,8 +82,9 @@ def default_api_key(api_key: str | None = None) -> str | None:
     """
     if api_key:
         return api_key
-    if os.environ.get("TOGETHER_API_KEY"):
-        return os.environ.get("TOGETHER_API_KEY")
+    env_api_key = _getenv("TOGETHER_API_KEY")
+    if env_api_key:
+        return env_api_key
 
     raise error.AuthenticationError(together.constants.MISSING_API_KEY_MESSAGE)
 
