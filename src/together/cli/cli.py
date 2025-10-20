@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from typing import Any
 
 import click
@@ -20,7 +21,7 @@ from together.constants import MAX_RETRIES, TIMEOUT_SECS
 def print_version(ctx: click.Context, params: Any, value: Any) -> None:
     if not value or ctx.resilient_parsing:
         return
-    click.echo(f"Version {together.version}")
+    sys.stdout.write(f"Version {together.version}\n")
     ctx.exit()
 
 
