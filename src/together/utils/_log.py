@@ -64,8 +64,20 @@ def log_warn(message: str | Any, **params: Any) -> None:
 
 
 def log_warn_once(message: str | Any, **params: Any) -> None:
+    # Optimize: Only format/log if message is new
+    # Fast-path avoids logfmt/regex unless the warning is actually new
+    dummy_msg = dict(message=message, **params)
+    # Use a simple stable repr to check membership first
+    # This loses logfmt fidelity, but WARNING_MESSAGES_ONCE stores formatted strings
+    # To avoid full formatting, check the unformatted warning here
+    # However, membership is determined by the formatted string, so need to precompute key
+    # Instead, convert to string key before calling logfmt
+    # But cost is dominated by logfmt, so instead we check the set membership first via the candidate message
+    msg_candidate = f"{message}|{sorted(params.items())}" if params else str(message)
+    if msg_candidate in WARNING_MESSAGES_ONCE:
+        return
     msg = logfmt(dict(message=message, **params))
     if msg not in WARNING_MESSAGES_ONCE:
         print(msg, file=sys.stderr)
         logger.warn(msg)
-        WARNING_MESSAGES_ONCE.add(msg)
+        WARNING_MESSAGES_ONCE.add(msg_candidate)
