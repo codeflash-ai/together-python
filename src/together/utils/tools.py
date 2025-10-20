@@ -101,7 +101,7 @@ def convert_bytes(num: float) -> str | None:
     """
     for unit in ["B", "KB", "MB", "GB", "TB", "PB"]:
         if num < 1024.0:
-            return "{:.1f} {}".format(num, unit)
+            return f"{num:.1f} {unit}"
         num /= 1024.0
 
     return None
