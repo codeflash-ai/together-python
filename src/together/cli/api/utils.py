@@ -18,10 +18,10 @@ class AutoIntParamType(click.ParamType):
         try:
             return int(value)
         except ValueError:
+            if not hasattr(self, "_error_format"):
+                self._error_format = _("{value!r} is not a valid {number_type}.")
             self.fail(
-                _("{value!r} is not a valid {number_type}.").format(
-                    value=value, number_type=self.name
-                ),
+                self._error_format.format(value=value, number_type=self.name),
                 param,
                 ctx,
             )
