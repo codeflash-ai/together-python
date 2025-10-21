@@ -104,7 +104,8 @@ async def parse_stream_async(rbody: aiohttp.StreamReader) -> AsyncGenerator[str,
 class APIRequestor:
     def __init__(self, client: TogetherClient):
         self.api_base = client.base_url or BASE_URL
-        self.api_key = client.api_key or utils.default_api_key()
+        # Cache environment variable outside loop for utils.default_api_key optimization
+        self.api_key = client.api_key if client.api_key is not None else utils.default_api_key()
         self.retries = MAX_RETRIES if client.max_retries is None else client.max_retries
         self.supplied_headers = client.supplied_headers
         self.timeout = client.timeout or TIMEOUT_SECS
@@ -126,28 +127,31 @@ class APIRequestor:
 
         # First, try the non-standard `retry-after-ms` header for milliseconds,
         # which is more precise than integer-seconds `retry-after`
-        try:
-            retry_ms_header = response_headers.get("retry-after-ms", None)
-            return float(retry_ms_header) / 1000
-        except (TypeError, ValueError):
-            pass
+        retry_ms_header = response_headers.get("retry-after-ms", None)
+        if retry_ms_header is not None:
+            try:
+                return float(retry_ms_header) / 1000
+            except (TypeError, ValueError):
+                pass
 
         # Next, try parsing `retry-after` header as seconds (allowing nonstandard floats).
-        retry_header = str(response_headers.get("retry-after"))
-        try:
-            # note: the spec indicates that this should only ever be an integer
-            # but if someone sends a float there's no reason for us to not respect it
-            return float(retry_header)
-        except (TypeError, ValueError):
-            pass
+        retry_header = response_headers.get("retry-after")
+        if retry_header is not None:
+            try:
+                # note: the spec indicates that this should only ever be an integer
+                # but if someone sends a float there's no reason for us to not respect it
+                return float(retry_header)
+            except (TypeError, ValueError):
+                pass
 
-        # Last, try parsing `retry-after` as a date.
-        retry_date_tuple = email.utils.parsedate_tz(retry_header)
-        if retry_date_tuple is None:
-            return None
+            # Last, try parsing `retry-after` as a date.
+            retry_header_str = str(retry_header)
+            retry_date_tuple = email.utils.parsedate_tz(retry_header_str)
+            if retry_date_tuple is not None:
+                retry_date = email.utils.mktime_tz(retry_date_tuple)
+                return float(retry_date - time.time())
 
-        retry_date = email.utils.mktime_tz(retry_date_tuple)
-        return float(retry_date - time.time())
+        return None
 
     def _calculate_retry_timeout(
         self,
@@ -162,7 +166,9 @@ class APIRequestor:
         nb_retries = self.retries - remaining_retries
 
         # Apply exponential backoff, but not more than the max.
-        sleep_seconds = min(INITIAL_RETRY_DELAY * pow(2.0, nb_retries), MAX_RETRY_DELAY)
+        sleep_seconds = INITIAL_RETRY_DELAY * (2.0 ** nb_retries)
+        if sleep_seconds > MAX_RETRY_DELAY:
+            sleep_seconds = MAX_RETRY_DELAY
 
         # Apply some jitter, plus-or-minus half a second.
         jitter = 1 - 0.25 * random()
