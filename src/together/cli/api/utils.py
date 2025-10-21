@@ -35,16 +35,7 @@ class BooleanWithAutoParamType(click.ParamType):
     ) -> bool | Literal["auto"] | None:
         if value == "auto":
             return "auto"
-        try:
-            return bool(value)
-        except ValueError:
-            self.fail(
-                _("{value!r} is not a valid {type}.").format(
-                    value=value, type=self.name
-                ),
-                param,
-                ctx,
-            )
+        return bool(value)
 
 
 INT_WITH_MAX = AutoIntParamType()
