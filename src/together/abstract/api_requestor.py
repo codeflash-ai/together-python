@@ -22,6 +22,7 @@ from urllib.parse import urlencode, urlsplit, urlunsplit
 import aiohttp
 import requests
 from tqdm.utils import CallbackIOWrapper
+from typing_extensions import Literal
 
 
 if sys.version_info >= (3, 8):
@@ -249,16 +250,38 @@ class APIRequestor:
         resp, got_stream = self._interpret_response(result, stream)
         return resp, got_stream, self.api_key
 
-    @overload
     async def arequest(
         self,
         options: TogetherRequest,
         stream: Literal[True],
         request_timeout: float | Tuple[float, float] | None = ...,
     ) -> Tuple[AsyncGenerator[TogetherResponse, None], bool, str]:
-        pass
+        # Use async context manager for session lifetime management for speed and correctness.
+        async with AioHTTPSession() as session:
+            result = None
+            try:
+                result = await self.arequest_raw(
+                    options,
+                    session,
+                    request_timeout=request_timeout,
+                )
+                resp, got_stream = await self._interpret_async_response(result, stream)
+            except Exception:
+                if result is not None:
+                    result.release()
+                raise
+            if got_stream:
+                async def wrap_resp() -> AsyncGenerator[TogetherResponse, None]:
+                    try:
+                        async for r in resp:
+                            yield r
+                    finally:
+                        result.release()
+                return wrap_resp(), got_stream, self.api_key  # type: ignore
+            else:
+                result.release()
+                return resp, got_stream, self.api_key  # type: ignore
 
-    @overload
     async def arequest(
         self,
         options: TogetherRequest,
@@ -266,25 +289,95 @@ class APIRequestor:
         stream: Literal[True],
         request_timeout: float | Tuple[float, float] | None = ...,
     ) -> Tuple[AsyncGenerator[TogetherResponse, None], bool, str]:
-        pass
+        # Use async context manager for session lifetime management for speed and correctness.
+        async with AioHTTPSession() as session:
+            result = None
+            try:
+                result = await self.arequest_raw(
+                    options,
+                    session,
+                    request_timeout=request_timeout,
+                )
+                resp, got_stream = await self._interpret_async_response(result, stream)
+            except Exception:
+                if result is not None:
+                    result.release()
+                raise
+            if got_stream:
+                async def wrap_resp() -> AsyncGenerator[TogetherResponse, None]:
+                    try:
+                        async for r in resp:
+                            yield r
+                    finally:
+                        result.release()
+                return wrap_resp(), got_stream, self.api_key  # type: ignore
+            else:
+                result.release()
+                return resp, got_stream, self.api_key  # type: ignore
 
-    @overload
     async def arequest(
         self,
         options: TogetherRequest,
         stream: Literal[False] = ...,
         request_timeout: float | Tuple[float, float] | None = ...,
     ) -> Tuple[TogetherResponse, bool, str]:
-        pass
+        # Use async context manager for session lifetime management for speed and correctness.
+        async with AioHTTPSession() as session:
+            result = None
+            try:
+                result = await self.arequest_raw(
+                    options,
+                    session,
+                    request_timeout=request_timeout,
+                )
+                resp, got_stream = await self._interpret_async_response(result, stream)
+            except Exception:
+                if result is not None:
+                    result.release()
+                raise
+            if got_stream:
+                async def wrap_resp() -> AsyncGenerator[TogetherResponse, None]:
+                    try:
+                        async for r in resp:
+                            yield r
+                    finally:
+                        result.release()
+                return wrap_resp(), got_stream, self.api_key  # type: ignore
+            else:
+                result.release()
+                return resp, got_stream, self.api_key  # type: ignore
 
-    @overload
     async def arequest(
         self,
         options: TogetherRequest,
         stream: bool = ...,
         request_timeout: float | Tuple[float, float] | None = ...,
     ) -> Tuple[TogetherResponse | AsyncGenerator[TogetherResponse, None], bool, str]:
-        pass
+        # Use async context manager for session lifetime management for speed and correctness.
+        async with AioHTTPSession() as session:
+            result = None
+            try:
+                result = await self.arequest_raw(
+                    options,
+                    session,
+                    request_timeout=request_timeout,
+                )
+                resp, got_stream = await self._interpret_async_response(result, stream)
+            except Exception:
+                if result is not None:
+                    result.release()
+                raise
+            if got_stream:
+                async def wrap_resp() -> AsyncGenerator[TogetherResponse, None]:
+                    try:
+                        async for r in resp:
+                            yield r
+                    finally:
+                        result.release()
+                return wrap_resp(), got_stream, self.api_key  # type: ignore
+            else:
+                result.release()
+                return resp, got_stream, self.api_key  # type: ignore
 
     async def arequest(
         self,
@@ -292,41 +385,31 @@ class APIRequestor:
         stream: bool = False,
         request_timeout: float | Tuple[float, float] | None = None,
     ) -> Tuple[TogetherResponse | AsyncGenerator[TogetherResponse, None], bool, str]:
-        ctx = AioHTTPSession()
-        session = await ctx.__aenter__()
-        result = None
-        try:
-            result = await self.arequest_raw(
-                options,
-                session,
-                request_timeout=request_timeout,
-            )
-            resp, got_stream = await self._interpret_async_response(result, stream)
-        except Exception:
-            # Close the request before exiting session context.
-            if result is not None:
-                result.release()
-            await ctx.__aexit__(None, None, None)
-            raise
-        if got_stream:
-
-            async def wrap_resp() -> AsyncGenerator[TogetherResponse, None]:
-                assert isinstance(resp, AsyncGenerator)
-                try:
-                    async for r in resp:
-                        yield r
-                finally:
-                    # Close the request before exiting session context. Important to do it here
-                    # as if stream is not fully exhausted, we need to close the request nevertheless.
+        # Use async context manager for session lifetime management for speed and correctness.
+        async with AioHTTPSession() as session:
+            result = None
+            try:
+                result = await self.arequest_raw(
+                    options,
+                    session,
+                    request_timeout=request_timeout,
+                )
+                resp, got_stream = await self._interpret_async_response(result, stream)
+            except Exception:
+                if result is not None:
                     result.release()
-                    await ctx.__aexit__(None, None, None)
-
-            return wrap_resp(), got_stream, self.api_key  # type: ignore
-        else:
-            # Close the request before exiting session context.
-            result.release()
-            await ctx.__aexit__(None, None, None)
-            return resp, got_stream, self.api_key  # type: ignore
+                raise
+            if got_stream:
+                async def wrap_resp() -> AsyncGenerator[TogetherResponse, None]:
+                    try:
+                        async for r in resp:
+                            yield r
+                    finally:
+                        result.release()
+                return wrap_resp(), got_stream, self.api_key  # type: ignore
+            else:
+                result.release()
+                return resp, got_stream, self.api_key  # type: ignore
 
     @classmethod
     def handle_error_response(

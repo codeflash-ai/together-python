@@ -193,31 +193,27 @@ class AsyncTranscriptions:
         files_data: Dict[str, Union[Tuple[None, str], BinaryIO]] = {}
         params_data = {}
 
-        if isinstance(file, (str, Path)):
-            if isinstance(file, str) and file.startswith(("http://", "https://")):
+        # Cache attribute lookups and avoid repeated conversions
+        file_is_str = isinstance(file, str)
+        file_is_path = isinstance(file, Path)
+        if file_is_str or file_is_path:
+            if file_is_str and file.startswith(("http://", "https://")):
                 # URL string - send as multipart field
                 files_data["file"] = (None, file)
             else:
                 # Local file path
-                file_path = Path(file)
+                file_path = file if file_is_path else Path(file)
                 files_data["file"] = open(file_path, "rb")
         else:
             # File object
             files_data["file"] = file
 
         # Build request parameters
+        param_format = response_format if isinstance(response_format, str) else getattr(response_format, "value", response_format)
         params_data.update(
             {
                 "model": model,
-                "response_format": (
-                    response_format
-                    if isinstance(response_format, str)
-                    else (
-                        response_format.value
-                        if hasattr(response_format, "value")
-                        else response_format
-                    )
-                ),
+                "response_format": param_format,
                 "temperature": temperature,
             }
         )
@@ -229,21 +225,13 @@ class AsyncTranscriptions:
             params_data["prompt"] = prompt
 
         if timestamp_granularities is not None:
-            params_data["timestamp_granularities"] = (
-                timestamp_granularities
-                if isinstance(timestamp_granularities, str)
-                else (
-                    timestamp_granularities.value
-                    if hasattr(timestamp_granularities, "value")
-                    else timestamp_granularities
-                )
-            )
+            param_granularities = timestamp_granularities if isinstance(timestamp_granularities, str) else getattr(timestamp_granularities, "value", timestamp_granularities)
+            params_data["timestamp_granularities"] = param_granularities
 
         # Add any additional kwargs
-        # Convert boolean values to lowercase strings for proper form encoding
         for key, value in kwargs.items():
             if isinstance(value, bool):
-                params_data[key] = str(value).lower()
+                params_data[key] = "true" if value else "false"
             else:
                 params_data[key] = value
 
@@ -258,12 +246,10 @@ class AsyncTranscriptions:
             )
         finally:
             # Close file if we opened it
-            if files_data and "file" in files_data:
+            file_obj = files_data.get("file")
+            if file_obj is not None and hasattr(file_obj, "close") and not isinstance(file_obj, tuple):
                 try:
-                    # Only close if it's a file object (not a tuple for URL)
-                    file_obj = files_data["file"]
-                    if hasattr(file_obj, "close") and not isinstance(file_obj, tuple):
-                        file_obj.close()
+                    file_obj.close()
                 except:
                     pass
 
