@@ -72,12 +72,12 @@ def _make_session(max_retries: int | None = None) -> requests.Session:
 
 
 def parse_stream_helper(line: bytes) -> str | None:
-    if line and line.startswith(b"data:"):
-        if line.startswith(b"data: "):
+    if line and line[:5] == b"data:":
+        if len(line) > 5 and line[5:6] == b" ":
             # SSE event may be valid when it contains whitespace
-            line = line[len(b"data: ") :]
+            line = line[6:]
         else:
-            line = line[len(b"data:") :]
+            line = line[5:]
         if line.strip().upper() == b"[DONE]":
             # return here will cause GeneratorExit exception in urllib3
             # and it will close http connection with TCP Reset
