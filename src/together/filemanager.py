@@ -466,18 +466,29 @@ class MultipartUploadManager:
 
     def _calculate_parts(self, file_size: int) -> tuple[int, int]:
         """Calculate optimal part size and count"""
-        min_part_size = MIN_PART_SIZE_MB * 1024 * 1024  # 5MB
-        target_part_size = TARGET_PART_SIZE_MB * 1024 * 1024  # 100MB
+        # Precompute constants once, avoiding repetitive multiplications
+        min_part_size = MIN_PART_SIZE_MB << 20  # MIN_PART_SIZE_MB * 1024 * 1024 (5MB)
+        target_part_size = TARGET_PART_SIZE_MB << 20  # TARGET_PART_SIZE_MB * 1024 * 1024 (100MB)
 
         if file_size <= target_part_size:
             return file_size, 1
 
-        num_parts = min(MAX_MULTIPART_PARTS, math.ceil(file_size / target_part_size))
-        part_size = math.ceil(file_size / num_parts)
+        # Use direct integer division and arithmetic to avoid math.ceil for positive integers
+        num_parts = file_size // target_part_size
+        if file_size % target_part_size:
+            num_parts += 1
+        if num_parts > MAX_MULTIPART_PARTS:
+            num_parts = MAX_MULTIPART_PARTS
+
+        part_size = file_size // num_parts
+        if file_size % num_parts:
+            part_size += 1
 
         if part_size < min_part_size:
             part_size = min_part_size
-            num_parts = math.ceil(file_size / part_size)
+            num_parts = file_size // part_size
+            if file_size % part_size:
+                num_parts += 1
 
         return part_size, num_parts
 
