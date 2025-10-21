@@ -649,22 +649,23 @@ class APIRequestor:
     ):
         """Returns the response(s) and a bool indicating whether it is a stream."""
         if stream and "text/event-stream" in result.headers.get("Content-Type", ""):
-            return (
-                self._interpret_response_line(
-                    line, result.status, result.headers, stream=True
-                )
-                async for line in parse_stream_async(result.content)
-            ), True
+            async def gen() -> AsyncGenerator[TogetherResponse, None]:
+                async for line in parse_stream_async(result.content):
+                    yield self._interpret_response_line(
+                        line, result.status, result.headers, stream=True
+                    )
+            return gen(), True
         else:
             try:
-                await result.read()
+                data = await result.read()
             except (aiohttp.ServerTimeoutError, asyncio.TimeoutError) as e:
                 raise error.Timeout("Request timed out") from e
             except aiohttp.ClientError as e:
                 utils.log_warn(e, body=result.content)
+                data = await result.read()
             return (
                 self._interpret_response_line(
-                    (await result.read()).decode("utf-8"),
+                    data.decode("utf-8"),
                     result.status,
                     result.headers,
                     stream=False,
