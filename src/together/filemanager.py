@@ -452,15 +452,18 @@ class MultipartUploadManager:
 
     def _get_file_type(self, file: Path) -> str:
         """Get file type from extension, raising ValueError for unsupported extensions"""
-        if file.suffix == ".jsonl":
-            return "jsonl"
-        elif file.suffix == ".parquet":
-            return "parquet"
-        elif file.suffix == ".csv":
-            return "csv"
-        else:
+        # Optimize by using a direct mapping lookup instead of chained if-elif-else
+        ext = file.suffix
+        ext_map = {
+            ".jsonl": "jsonl",
+            ".parquet": "parquet",
+            ".csv": "csv",
+        }
+        try:
+            return ext_map[ext]
+        except KeyError:
             raise ValueError(
-                f"Unsupported file extension: '{file.suffix}'. "
+                f"Unsupported file extension: '{ext}'. "
                 f"Supported extensions: .jsonl, .parquet, .csv"
             )
 
