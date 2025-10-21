@@ -102,7 +102,7 @@ def _prepare_output(
     if output:
         return output
 
-    content_type = str(headers.get("content-type"))
+    content_type = headers.get("content-type")
 
     assert remote_name, (
         "No model name found in fine_tune object. "
@@ -112,7 +112,7 @@ def _prepare_output(
     if step > 0:
         remote_name += f"-checkpoint-{step}"
 
-    if "x-tar" in content_type.lower():
+    if content_type and "x-tar" in content_type.lower():
         remote_name += ".tar.gz"
 
     else:
