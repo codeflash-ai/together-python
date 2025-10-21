@@ -409,12 +409,14 @@ class APIRequestor:
         if not isinstance(supplied_headers, dict):
             raise TypeError("Headers must be a dictionary")
 
-        for k, v in supplied_headers.items():
+        for k in supplied_headers.keys():
             if not isinstance(k, str):
                 raise TypeError("Header keys must be strings")
+        for v in supplied_headers.values():
             if not isinstance(v, str):
                 raise TypeError("Header values must be strings")
-            headers[k] = v
+
+        headers.update(supplied_headers)
 
         # NOTE: It is possible to do more validation of the headers, but a request could always
         # be made to the API manually with invalid headers, so we need to handle them server side.
